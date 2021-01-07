@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, StorageMap};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, StorageMap, dispatch};
 use frame_system::ensure_signed;
 use sp_std::vec::Vec;
 
@@ -24,6 +24,7 @@ decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
         ClaimCreated(AccountId, Vec<u8>),
         ClaimRevoked(AccountId, Vec<u8>),
+        ClaimTransfered(AccountId, AccountId, Vec<u8>),
 	}
 );
 
@@ -32,6 +33,7 @@ decl_error! {
 		ProofAlreadyClaimed,
         NoSuchProof,
         NotProofOwner,
+        ProofTooLarge,
 	}
 }
 
@@ -49,6 +51,8 @@ decl_module! {
             // This function will return an error if the extrinsic is not signed.
             // https://substrate.dev/docs/en/knowledgebase/runtime/origin
             let sender = ensure_signed(origin)?;
+
+            ensure!(proof.len() <= 256, Error::<T>::ProofTooLarge);
 
             // Verify that the specified proof has not already been claimed.
             ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::ProofAlreadyClaimed);
@@ -84,6 +88,34 @@ decl_module! {
 
             // Emit an event that the claim was erased.
             Self::deposit_event(RawEvent::ClaimRevoked(sender, proof));
+        }
+
+        #[weight = 10_000]
+        fn transfer_claim(origin, proof: Vec<u8>, dest: T::AccountId) -> dispatch::DispatchResult {
+            // Check that the extrinsic was signed and get the signer.
+            // This function will return an error if the extrinsic is not signed.
+            // https://substrate.dev/docs/en/knowledgebase/runtime/origin
+            let sender = ensure_signed(origin)?;
+
+            // Verify that the specified proof has been claimed.
+            ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
+
+            // Get owner of the claim.
+            let (owner, _) = Proofs::<T>::get(&proof);
+
+            // Verify that sender of the current call is the claim owner.
+            ensure!(sender == owner, Error::<T>::NotProofOwner);
+
+            // Get the block number from the FRAME System module.
+            let current_block = <frame_system::Module<T>>::block_number();
+
+            // Store the proof with the sender and block number.
+            Proofs::<T>::insert(&proof, (&dest, current_block));
+
+            // Emit an event that the claim was erased.
+            Self::deposit_event(RawEvent::ClaimTransfered(sender, dest, proof));
+
+            Ok(())
         }
 	}
 }
