@@ -94,3 +94,15 @@ fn transfer_claim_not_owner() {
 		);
     })
 }
+
+#[test]
+fn create_claim_fail_when_to_large_hash() {
+    new_test_ext().execute_with(|| {
+        let proof = vec![1; 257];
+
+        assert_noop!(
+			PoeModule::create_claim(Origin::signed(1), proof.clone()),
+			Error::<Test>::ProofTooLarge
+		);
+    })
+}
