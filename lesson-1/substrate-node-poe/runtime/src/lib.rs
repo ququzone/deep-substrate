@@ -130,6 +130,7 @@ parameter_types! {
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
+	pub const MaxProofLength: usize = 256;
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -268,6 +269,7 @@ impl pallet_template::Trait for Runtime {
 }
 impl pallet_poe::Trait for Runtime {
 	type Event = Event;
+	type MaxProofLength = MaxProofLength;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

@@ -98,7 +98,7 @@ fn transfer_claim_not_owner() {
 #[test]
 fn create_claim_fail_when_to_large_hash() {
     new_test_ext().execute_with(|| {
-        let proof = vec![1; 257];
+        let proof = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
         assert_noop!(
 			PoeModule::create_claim(Origin::signed(1), proof.clone()),

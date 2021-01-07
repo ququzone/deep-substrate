@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, StorageMap, dispatch};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, StorageMap, dispatch,
+    traits::{Get},
+};
 use frame_system::ensure_signed;
 use sp_std::vec::Vec;
 
@@ -11,7 +13,9 @@ mod mock;
 mod tests;
 
 pub trait Trait: frame_system::Trait {
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+
+    type MaxProofLength: Get<usize>;
 }
 
 decl_storage! {
@@ -52,7 +56,7 @@ decl_module! {
             // https://substrate.dev/docs/en/knowledgebase/runtime/origin
             let sender = ensure_signed(origin)?;
 
-            ensure!(proof.len() <= 256, Error::<T>::ProofTooLarge);
+            ensure!(proof.len() <= T::MaxProofLength::get(), Error::<T>::ProofTooLarge);
 
             // Verify that the specified proof has not already been claimed.
             ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::ProofAlreadyClaimed);
