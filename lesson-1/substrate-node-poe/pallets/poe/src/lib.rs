@@ -98,7 +98,7 @@ decl_module! {
             let sender = ensure_signed(origin)?;
 
             // Verify that the specified proof has been claimed.
-            ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
+            ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
 
             // Get owner of the claim.
             let (owner, _) = Proofs::<T>::get(&proof);
