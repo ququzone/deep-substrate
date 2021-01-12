@@ -32,6 +32,8 @@ pub trait Trait: frame_system::Trait {
     type Randomness: Randomness<Self::Hash>;
 
     type KittyIndex: Parameter + Member + AtLeast32Bit + Bounded + Default + Copy;
+
+    type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 }
 
 type KittyLinkedItem<T> = LinkedItem<<T as Trait>::KittyIndex>;
@@ -85,7 +87,7 @@ decl_module! {
             let kitty = Kitty(dna);
             Self::insert_kitty(&sender, kitty_id, kitty);
             
-            T::Currency::reserve(&locker, amount)
+            T::Currency::reserve(&sender, amount)
 					.map_err(|_| "locker can't afford to lock the amount requested")?;
 
             Self::deposit_event(RawEvent::Created(sender, kitty_id));

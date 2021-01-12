@@ -5,7 +5,6 @@ use frame_support::{
 };
 use frame_system::{EventRecord, Phase};
 use super::*;
-use mock::*;
 
 fn run_to_block(n: u64) {
 	while System::block_number() < n {
@@ -21,7 +20,7 @@ fn run_to_block(n: u64) {
 fn create_works() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		// assert_eq!(
 		// 	System::events(),
@@ -34,19 +33,19 @@ fn create_works() {
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
 		assert_eq!(KittiesModule::kitty_owner(0), Some(5));
-		assert_eq!(KittiesModule::owned_kitties(&(5, None)), Some(KittyLinkedItem::<Test> {
+		assert_eq!(KittiesModule::owned_kitties(&(5, None)), Some(KittyLinkedItem::<TestRuntime> {
 			prev: Some(0),
 			next: Some(0),
 		}));
 
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 		assert_eq!(KittiesModule::kitties_count(), 2);
 		assert_eq!(KittiesModule::kitty_owner(1), Some(5));
-		assert_eq!(KittiesModule::owned_kitties(&(5, None)), Some(KittyLinkedItem::<Test> {
+		assert_eq!(KittiesModule::owned_kitties(&(5, None)), Some(KittyLinkedItem::<TestRuntime> {
 			prev: Some(1),
 			next: Some(0),
 		}));
-		assert_eq!(KittiesModule::owned_kitties(&(5, Some(1))), Some(KittyLinkedItem::<Test> {
+		assert_eq!(KittiesModule::owned_kitties(&(5, Some(1))), Some(KittyLinkedItem::<TestRuntime> {
 			prev: Some(0),
 			next: None,
 		}));
@@ -57,7 +56,7 @@ fn create_works() {
 fn transfer_works() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
 		assert_eq!(KittiesModule::kitty_owner(0), Some(5));
@@ -73,14 +72,14 @@ fn transfer_works() {
 fn transfer_not_exist() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
 		assert_eq!(KittiesModule::kitty_owner(0), Some(5));
 
 		assert_noop!(
 			KittiesModule::transfer(Origin::signed(5), 10, 1),
-			Error::<Test>::NotKittyOwner
+			Error::<TestRuntime>::NotKittyOwner
 		);
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
@@ -92,14 +91,14 @@ fn transfer_not_exist() {
 fn transfer_not_owner() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
 		assert_eq!(KittiesModule::kitty_owner(0), Some(5));
 
 		assert_noop!(
 			KittiesModule::transfer(Origin::signed(10), 10, 0),
-			Error::<Test>::NotKittyOwner
+			Error::<TestRuntime>::NotKittyOwner
 		);
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
@@ -111,8 +110,8 @@ fn transfer_not_owner() {
 fn breed_works() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		assert_eq!(KittiesModule::kitties_count(), 2);
 
@@ -125,22 +124,22 @@ fn breed_works() {
 fn breed_kitty_not_exist() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		assert_eq!(KittiesModule::kitties_count(), 2);
 
 		assert_noop!(
 			KittiesModule::breed(Origin::signed(5), 3, 4),
-			Error::<Test>::InvalidKittyId
+			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_noop!(
 			KittiesModule::breed(Origin::signed(5), 0, 4),
-			Error::<Test>::InvalidKittyId
+			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_noop!(
 			KittiesModule::breed(Origin::signed(5), 1, 4),
-			Error::<Test>::InvalidKittyId
+			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_eq!(KittiesModule::kitties_count(), 2);
 	});
@@ -149,14 +148,14 @@ fn breed_kitty_not_exist() {
 fn breed_kitty_not_owner() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
-		assert_ok!(KittiesModule::create(Origin::signed(5)));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
 		assert_eq!(KittiesModule::kitties_count(), 2);
 
 		assert_noop!(
 			KittiesModule::breed(Origin::signed(10), 0, 1),
-			Error::<Test>::InvalidKittyId
+			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_eq!(KittiesModule::kitties_count(), 2);
 	});
