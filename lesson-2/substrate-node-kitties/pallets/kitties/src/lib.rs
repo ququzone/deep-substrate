@@ -6,11 +6,14 @@ use frame_support::{
     traits::{Randomness},
 };
 use sp_io::hashing::blake2_128;
-use frame_system::ensure_signed;
+use frame_system::{self as system, ensure_signed};
 use sp_runtime::{
     DispatchError,
     traits::{AtLeast32Bit, Bounded, Member},
 };
+use crate::linked_item::{LinkedList, LinkedItem};
+
+mod linked_item;
 
 #[cfg(test)]
 mod mock;
@@ -29,10 +32,15 @@ pub trait Trait: frame_system::Trait {
     type KittyIndex: Parameter + Member + AtLeast32Bit + Bounded + Default + Copy;
 }
 
+type KittyLinkedItem<T> = LinkedItem<<T as Trait>::KittyIndex>;
+type OwnedKittiesList<T> = LinkedList<OwnedKitties<T>, <T as system::Trait>::AccountId, <T as Trait>::KittyIndex>;
+
 decl_storage! {
     trait Store for Module<T: Trait> as Kitties {
         pub Kitties get(fn kitties): map hasher(blake2_128_concat) T::KittyIndex => Option<Kitty>;
         pub KittiesCount get(fn kitties_count): T::KittyIndex;
+
+        pub OwnedKitties get(fn owned_kitties): map hasher(blake2_128_concat) (T::AccountId, Option<T::KittyIndex>) => Option<KittyLinkedItem<T>>;
         pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
     }
 }
@@ -42,6 +50,7 @@ decl_error! {
         KittiesCountOverflow,
         InvalidKittyId,
         RequireDifferentParent,
+        NotKittyOwner,
 	}
 }
 
@@ -76,7 +85,12 @@ decl_module! {
         #[weight = 0]
         pub fn transfer(origin, to: T::AccountId, kitty_id: T::KittyIndex) {
             let sender = ensure_signed(origin)?;
-            <KittyOwners<T>>::insert(kitty_id, to.clone());
+
+            ensure!(<OwnedKitties<T>>::contains_key((&sender, Some(kitty_id))), Error::<T>::NotKittyOwner);
+
+            <OwnedKittiesList<T>>::remove(&sender, kitty_id);
+		    Self::insert_owned_kitty(&to, kitty_id);
+            
             Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
         }
 
@@ -114,13 +128,20 @@ impl<T: Trait> Module<T> {
     fn insert_kitty(owner: &T::AccountId, kitty_id: T::KittyIndex, kitty: Kitty) {
         Kitties::<T>::insert(kitty_id, kitty);
         KittiesCount::<T>::put(kitty_id + 1.into());
-        <KittyOwners<T>>::insert(kitty_id, owner);
+        Self::insert_owned_kitty(owner, kitty_id);
     }
+
+    fn insert_owned_kitty(owner: &T::AccountId, kitty_id: T::KittyIndex) {
+		<OwnedKittiesList<T>>::append(owner, kitty_id);
+		<KittyOwners<T>>::insert(kitty_id, owner);
+	}
     
     fn do_breed(sender: &T::AccountId, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) -> sp_std::result::Result<T::KittyIndex, DispatchError> {
         let kitty1 = Self::kitties(kitty_id_1).ok_or(Error::<T>::InvalidKittyId)?;
         let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::InvalidKittyId)?;
 
+        ensure!(<OwnedKitties<T>>::contains_key((&sender, Some(kitty_id_1))), Error::<T>::NotKittyOwner);
+		ensure!(<OwnedKitties<T>>::contains_key((&sender, Some(kitty_id_2))), Error::<T>::NotKittyOwner);
         ensure!(kitty_id_1 != kitty_id_2, Error::<T>::RequireDifferentParent);
 
         let kitty_id = Self::next_kitty_id()?;
