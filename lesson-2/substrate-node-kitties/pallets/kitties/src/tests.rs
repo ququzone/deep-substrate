@@ -22,14 +22,11 @@ fn create_works() {
 		run_to_block(2);
 		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
-		// assert_eq!(
-		// 	System::events(),
-		// 	vec![EventRecord {
-		// 		phase: Phase::Initialization,
-		// 		event: TestEvent::kitties_event(Event::Created(5 as AccountId, 0,)),
-		// 		topics: vec![],
-		// 	}]
-		// );
+		let expected_event = TestEvent::kitties_event(RawEvent::Created(5, 0));
+		assert_eq!(
+			System::events()[1].event,
+			expected_event,
+		);
 
 		assert_eq!(KittiesModule::kitties_count(), 1);
 		assert_eq!(KittiesModule::kitty_owner(0), Some(5));
@@ -145,6 +142,7 @@ fn breed_kitty_not_exist() {
 	});
 }
 
+#[test]
 fn breed_kitty_not_owner() {
     new_test_ext().execute_with(|| {
 		run_to_block(2);
@@ -155,8 +153,24 @@ fn breed_kitty_not_owner() {
 
 		assert_noop!(
 			KittiesModule::breed(Origin::signed(10), 0, 1),
-			Error::<TestRuntime>::InvalidKittyId
+			Error::<TestRuntime>::NotKittyOwner
 		);
 		assert_eq!(KittiesModule::kitties_count(), 2);
+	});
+}
+
+#[test]
+fn breed_kitty_with_same() {
+    new_test_ext().execute_with(|| {
+		run_to_block(2);
+		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
+
+		assert_eq!(KittiesModule::kitties_count(), 1);
+
+		assert_noop!(
+			KittiesModule::breed(Origin::signed(5), 0, 0),
+			Error::<TestRuntime>::RequireDifferentParent
+		);
+		assert_eq!(KittiesModule::kitties_count(), 1);
 	});
 }
