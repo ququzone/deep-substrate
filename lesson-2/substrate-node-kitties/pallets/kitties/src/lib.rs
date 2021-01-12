@@ -36,6 +36,7 @@ decl_storage! {
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
         Created(AccountId, KittyIndex),
+        Transferred(AccountId, AccountId, KittyIndex),
     }
 );
 
@@ -59,6 +60,13 @@ decl_module! {
 			Self::insert_kitty(&sender, kitty_id, kitty);
 
             Self::deposit_event(RawEvent::Created(sender, kitty_id));
+        }
+
+        #[weight = 0]
+        pub fn transfer(origin, to::T::AccountId, kitty_id: KittyIndex) {
+            let sender = ensure_signed(origin)?;
+            <KittyOwners<T>>::insert(kitty_id, to.clone());
+            Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
         }
     }
 }
