@@ -3,7 +3,6 @@ use frame_support::{
 	assert_ok, assert_noop,
 	traits::{OnFinalize, OnInitialize},
 };
-use frame_system::{EventRecord, Phase};
 use super::*;
 
 fn run_to_block(n: u64) {
@@ -22,7 +21,7 @@ fn create_works() {
 		run_to_block(2);
 		assert_ok!(KittiesModule::create(Origin::signed(5), 5000));
 
-		let expected_event = TestEvent::kitties_event(RawEvent::Created(5, 0));
+		let expected_event = TestEvent::kitties_event(RawEvent::Created(5, 0, 5000));
 		assert_eq!(
 			System::events()[1].event,
 			expected_event,
@@ -60,7 +59,7 @@ fn transfer_works() {
 
 		assert_ok!(KittiesModule::transfer(Origin::signed(5), 10, 0));
 
-		let expected_event = TestEvent::kitties_event(RawEvent::Transferred(5, 10, 0));
+		let expected_event = TestEvent::kitties_event(RawEvent::Transferred(5, 10, 0, 5000));
 		assert_eq!(
 			System::events()[7].event,
 			expected_event,

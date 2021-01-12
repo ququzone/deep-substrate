@@ -87,7 +87,6 @@ impl Trait for TestRuntime {
 }
 
 pub type System = system::Module<TestRuntime>;
-pub type Balances = balances::Module<TestRuntime>;
 pub type KittiesModule = Module<TestRuntime>;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

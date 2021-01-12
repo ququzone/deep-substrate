@@ -65,10 +65,11 @@ decl_error! {
 decl_event!(
     pub enum Event<T> where 
         <T as frame_system::Trait>::AccountId,
+        Balance = BalanceOf<T>,
         <T as Trait>::KittyIndex,
     {
-        Created(AccountId, KittyIndex),
-        Transferred(AccountId, AccountId, KittyIndex),
+        Created(AccountId, KittyIndex, Balance),
+        Transferred(AccountId, AccountId, KittyIndex, Balance),
     }
 );
 
@@ -90,7 +91,7 @@ decl_module! {
             T::Currency::reserve(&sender, amount)
 					.map_err(|_| "locker can't afford to lock the amount requested")?;
 
-            Self::deposit_event(RawEvent::Created(sender, kitty_id));
+            Self::deposit_event(RawEvent::Created(sender, kitty_id, amount));
         }
 
         #[weight = 0]
@@ -110,14 +111,14 @@ decl_module! {
             <OwnedKittiesList<T>>::remove(&sender, kitty_id);
 		    Self::insert_owned_kitty(&to, kitty_id);
             
-            Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
+            Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id, amount));
         }
 
         #[weight = 0]
         pub fn breed(origin, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex, amount: BalanceOf<T>) {
             let sender = ensure_signed(origin)?;
             let new_kitty_id = Self::do_breed(&sender, kitty_id_1, kitty_id_2, amount)?;
-            Self::deposit_event(RawEvent::Created(sender, new_kitty_id));
+            Self::deposit_event(RawEvent::Created(sender, new_kitty_id, amount));
         }
     }
 }
