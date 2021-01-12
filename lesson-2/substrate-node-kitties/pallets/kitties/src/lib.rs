@@ -2,20 +2,21 @@
 
 use codec::{Encode, Decode};
 use frame_support::{
-    decl_module, decl_storage, decl_error, decl_event, ensure, StorageMap,
+    decl_module, decl_storage, decl_error, decl_event, ensure, StorageMap, Parameter,
     traits::{Randomness},
 };
 use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
-use sp_runtime::DispatchError;
+use sp_runtime::{
+    DispatchError,
+    traits::{AtLeast32Bit, Bounded, Member},
+};
 
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
-
-type KittyIndex = u32;
 
 #[derive(Encode, Decode)]
 pub struct Kitty(pub [u8; 16]);
@@ -24,13 +25,15 @@ pub trait Trait: frame_system::Trait {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
     type Randomness: Randomness<Self::Hash>;
+
+    type KittyIndex: Parameter + Member + AtLeast32Bit + Bounded + Default + Copy;
 }
 
 decl_storage! {
     trait Store for Module<T: Trait> as Kitties {
-        pub Kitties get(fn kitties): map hasher(blake2_128_concat) KittyIndex => Option<Kitty>;
-        pub KittiesCount get(fn kitties_count): KittyIndex;
-        pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) KittyIndex => Option<T::AccountId>;
+        pub Kitties get(fn kitties): map hasher(blake2_128_concat) T::KittyIndex => Option<Kitty>;
+        pub KittiesCount get(fn kitties_count): T::KittyIndex;
+        pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
     }
 }
 
@@ -43,7 +46,10 @@ decl_error! {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
+    pub enum Event<T> where 
+        <T as frame_system::Trait>::AccountId,
+        <T as Trait>::KittyIndex,
+    {
         Created(AccountId, KittyIndex),
         Transferred(AccountId, AccountId, KittyIndex),
     }
@@ -68,14 +74,14 @@ decl_module! {
         }
 
         #[weight = 0]
-        pub fn transfer(origin, to: T::AccountId, kitty_id: KittyIndex) {
+        pub fn transfer(origin, to: T::AccountId, kitty_id: T::KittyIndex) {
             let sender = ensure_signed(origin)?;
             <KittyOwners<T>>::insert(kitty_id, to.clone());
             Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
         }
 
         #[weight = 0]
-        pub fn breed(origin, kitty_id_1: KittyIndex, kitty_id_2: KittyIndex) {
+        pub fn breed(origin, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) {
             let sender = ensure_signed(origin)?;
             let new_kitty_id = Self::do_breed(&sender, kitty_id_1, kitty_id_2)?;
             Self::deposit_event(RawEvent::Created(sender, new_kitty_id));
@@ -88,9 +94,9 @@ fn combine_dna(dna1: u8, dna2: u8, selector: u8) -> u8 {
 }
 
 impl<T: Trait> Module<T> {
-    fn next_kitty_id() -> sp_std::result::Result<u32, DispatchError> {
+    fn next_kitty_id() -> sp_std::result::Result<T::KittyIndex, DispatchError> {
 		let kitty_id = Self::kitties_count();
-		if kitty_id == u32::max_value() {
+		if kitty_id == T::KittyIndex::max_value() {
 			return Err(Error::<T>::KittiesCountOverflow.into());
 		}
 		Ok(kitty_id)
@@ -105,13 +111,13 @@ impl<T: Trait> Module<T> {
         payload.using_encoded(blake2_128)
     }
     
-    fn insert_kitty(owner: &T::AccountId, kitty_id: u32, kitty: Kitty) {
-        Kitties::insert(kitty_id, kitty);
-        KittiesCount::put(kitty_id + 1);
+    fn insert_kitty(owner: &T::AccountId, kitty_id: T::KittyIndex, kitty: Kitty) {
+        Kitties::<T>::insert(kitty_id, kitty);
+        KittiesCount::<T>::put(kitty_id + 1.into());
         <KittyOwners<T>>::insert(kitty_id, owner);
     }
     
-    fn do_breed(sender: &T::AccountId, kitty_id_1: KittyIndex, kitty_id_2: KittyIndex) -> sp_std::result::Result<KittyIndex, DispatchError> {
+    fn do_breed(sender: &T::AccountId, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) -> sp_std::result::Result<T::KittyIndex, DispatchError> {
         let kitty1 = Self::kitties(kitty_id_1).ok_or(Error::<T>::InvalidKittyId)?;
         let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::InvalidKittyId)?;
 

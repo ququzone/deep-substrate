@@ -56,6 +56,7 @@ type Randomness = pallet_randomness_collective_flip::Module<Test>;
 impl Trait for Test {
 	type Event = ();
 	type Randomness = Randomness;
+	type KittyIndex = u32;
 }
 
 pub type KittiesModule = Module<Test>;
