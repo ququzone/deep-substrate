@@ -95,8 +95,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.build_storage::<TestRuntime>()
 		.unwrap();
 	balances::GenesisConfig::<TestRuntime> {
-		// Provide some initial balances
-		balances: vec![(1, 10000), (2, 11000), (3, 12000), (4, 13000), (5, 14000)],
+		balances: vec![(1, 50000), (2, 51000), (3, 52000), (4, 53000), (5, 54000)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

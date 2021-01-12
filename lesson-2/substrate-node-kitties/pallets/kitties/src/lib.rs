@@ -42,7 +42,7 @@ type KittyChildrenList<T> = LinkedList<KittyChildren<T>, <T as Trait>::KittyInde
 
 decl_storage! {
     trait Store for Module<T: Trait> as Kitties {
-        pub Kitties get(fn kitties): map hasher(blake2_128_concat) T::KittyIndex => Option<Kitty>;
+        pub Kitties get(fn kitties): map hasher(blake2_128_concat) T::KittyIndex => Option<(Kitty, BalanceOf<T>)>;
         pub KittiesCount get(fn kitties_count): T::KittyIndex;
 
         pub OwnedKitties get(fn owned_kitties): map hasher(blake2_128_concat) (T::AccountId, Option<T::KittyIndex>) => Option<KittyLinkedItem<T>>;
@@ -85,7 +85,7 @@ decl_module! {
             let dna = Self::random_value(&sender);
 
             let kitty = Kitty(dna);
-            Self::insert_kitty(&sender, kitty_id, kitty);
+            Self::insert_kitty(&sender, kitty_id, kitty, amount);
             
             T::Currency::reserve(&sender, amount)
 					.map_err(|_| "locker can't afford to lock the amount requested")?;
@@ -99,6 +99,14 @@ decl_module! {
 
             ensure!(<OwnedKitties<T>>::contains_key((&sender, Some(kitty_id))), Error::<T>::NotKittyOwner);
 
+            let kitty = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyId)?;
+            let (_, amount) = kitty;
+
+            T::Currency::unreserve(&sender, amount);
+            T::Currency::transfer(&sender, &to, amount, AllowDeath)?;
+            T::Currency::reserve(&to, amount)
+					.map_err(|_| "locker can't afford to lock the amount requested")?;
+
             <OwnedKittiesList<T>>::remove(&sender, kitty_id);
 		    Self::insert_owned_kitty(&to, kitty_id);
             
@@ -106,9 +114,9 @@ decl_module! {
         }
 
         #[weight = 0]
-        pub fn breed(origin, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) {
+        pub fn breed(origin, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex, amount: BalanceOf<T>) {
             let sender = ensure_signed(origin)?;
-            let new_kitty_id = Self::do_breed(&sender, kitty_id_1, kitty_id_2)?;
+            let new_kitty_id = Self::do_breed(&sender, kitty_id_1, kitty_id_2, amount)?;
             Self::deposit_event(RawEvent::Created(sender, new_kitty_id));
         }
     }
@@ -136,8 +144,8 @@ impl<T: Trait> Module<T> {
         payload.using_encoded(blake2_128)
     }
     
-    fn insert_kitty(owner: &T::AccountId, kitty_id: T::KittyIndex, kitty: Kitty) {
-        Kitties::<T>::insert(kitty_id, kitty);
+    fn insert_kitty(owner: &T::AccountId, kitty_id: T::KittyIndex, kitty: Kitty, amount: BalanceOf<T>) {
+        Kitties::<T>::insert(kitty_id, (kitty, amount));
         KittiesCount::<T>::put(kitty_id + 1.into());
         Self::insert_owned_kitty(owner, kitty_id);
     }
@@ -147,7 +155,7 @@ impl<T: Trait> Module<T> {
 		<KittyOwners<T>>::insert(kitty_id, owner);
 	}
     
-    fn do_breed(sender: &T::AccountId, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) -> sp_std::result::Result<T::KittyIndex, DispatchError> {
+    fn do_breed(sender: &T::AccountId, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex, amount: BalanceOf<T>) -> sp_std::result::Result<T::KittyIndex, DispatchError> {
         let kitty1 = Self::kitties(kitty_id_1).ok_or(Error::<T>::InvalidKittyId)?;
         let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::InvalidKittyId)?;
 
@@ -155,10 +163,15 @@ impl<T: Trait> Module<T> {
 		ensure!(<OwnedKitties<T>>::contains_key((&sender, Some(kitty_id_2))), Error::<T>::NotKittyOwner);
         ensure!(kitty_id_1 != kitty_id_2, Error::<T>::RequireDifferentParent);
 
+        T::Currency::reserve(sender, amount)
+					.map_err(|_| "locker can't afford to lock the amount requested")?;
+
         let kitty_id = Self::next_kitty_id()?;
 
-        let kitty1_dna = kitty1.0;
-        let kitty2_dna = kitty2.0;
+        let (kitty1_, _) = kitty1;
+        let (kitty2_, _) = kitty2;
+        let kitty1_dna = kitty1_.0;
+        let kitty2_dna = kitty2_.0;
         let selector = Self::random_value(&sender);
         let mut new_dna = [0u8; 16];
 
@@ -169,7 +182,7 @@ impl<T: Trait> Module<T> {
         <KittyChildrenList<T>>::append(&kitty_id_1, kitty_id);
         <KittyChildrenList<T>>::append(&kitty_id_2, kitty_id);
 		<KittyParents<T>>::insert(kitty_id, (kitty_id_1, kitty_id_2));
-        Self::insert_kitty(sender, kitty_id, Kitty(new_dna));
+        Self::insert_kitty(sender, kitty_id, Kitty(new_dna), amount);
         Ok(kitty_id)
     }
 }

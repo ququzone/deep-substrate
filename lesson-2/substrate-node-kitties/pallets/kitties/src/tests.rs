@@ -60,6 +60,12 @@ fn transfer_works() {
 
 		assert_ok!(KittiesModule::transfer(Origin::signed(5), 10, 0));
 
+		let expected_event = TestEvent::kitties_event(RawEvent::Transferred(5, 10, 0));
+		assert_eq!(
+			System::events()[7].event,
+			expected_event,
+		);
+
 		assert_eq!(KittiesModule::kitties_count(), 1);
 		assert_eq!(KittiesModule::kitty_owner(0), Some(10));
 	});
@@ -112,7 +118,7 @@ fn breed_works() {
 
 		assert_eq!(KittiesModule::kitties_count(), 2);
 
-		assert_ok!(KittiesModule::breed(Origin::signed(5), 0, 1));
+		assert_ok!(KittiesModule::breed(Origin::signed(5), 0, 1, 5000));
 		assert_eq!(KittiesModule::kitties_count(), 3);
 	});
 }
@@ -127,15 +133,15 @@ fn breed_kitty_not_exist() {
 		assert_eq!(KittiesModule::kitties_count(), 2);
 
 		assert_noop!(
-			KittiesModule::breed(Origin::signed(5), 3, 4),
+			KittiesModule::breed(Origin::signed(5), 3, 4, 5000),
 			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_noop!(
-			KittiesModule::breed(Origin::signed(5), 0, 4),
+			KittiesModule::breed(Origin::signed(5), 0, 4, 5000),
 			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_noop!(
-			KittiesModule::breed(Origin::signed(5), 1, 4),
+			KittiesModule::breed(Origin::signed(5), 1, 4, 5000),
 			Error::<TestRuntime>::InvalidKittyId
 		);
 		assert_eq!(KittiesModule::kitties_count(), 2);
@@ -152,7 +158,7 @@ fn breed_kitty_not_owner() {
 		assert_eq!(KittiesModule::kitties_count(), 2);
 
 		assert_noop!(
-			KittiesModule::breed(Origin::signed(10), 0, 1),
+			KittiesModule::breed(Origin::signed(10), 0, 1, 5000),
 			Error::<TestRuntime>::NotKittyOwner
 		);
 		assert_eq!(KittiesModule::kitties_count(), 2);
@@ -168,7 +174,7 @@ fn breed_kitty_with_same() {
 		assert_eq!(KittiesModule::kitties_count(), 1);
 
 		assert_noop!(
-			KittiesModule::breed(Origin::signed(5), 0, 0),
+			KittiesModule::breed(Origin::signed(5), 0, 0, 5000),
 			Error::<TestRuntime>::RequireDifferentParent
 		);
 		assert_eq!(KittiesModule::kitties_count(), 1);
