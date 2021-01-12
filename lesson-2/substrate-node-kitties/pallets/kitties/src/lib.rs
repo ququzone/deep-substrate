@@ -34,6 +34,7 @@ pub trait Trait: frame_system::Trait {
 
 type KittyLinkedItem<T> = LinkedItem<<T as Trait>::KittyIndex>;
 type OwnedKittiesList<T> = LinkedList<OwnedKitties<T>, <T as system::Trait>::AccountId, <T as Trait>::KittyIndex>;
+type KittyChildrenList<T> = LinkedList<KittyChildren<T>, <T as Trait>::KittyIndex, <T as Trait>::KittyIndex>;
 
 decl_storage! {
     trait Store for Module<T: Trait> as Kitties {
@@ -42,6 +43,9 @@ decl_storage! {
 
         pub OwnedKitties get(fn owned_kitties): map hasher(blake2_128_concat) (T::AccountId, Option<T::KittyIndex>) => Option<KittyLinkedItem<T>>;
         pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
+
+        pub KittyParents get(fn kitty_parents): map hasher(blake2_128_concat) T::KittyIndex => Option<(T::KittyIndex, T::KittyIndex)>;
+        pub KittyChildren get(fn kitty_children): map hasher(blake2_128_concat) (T::KittyIndex, Option<T::KittyIndex>) => Option<KittyLinkedItem<T>>;
     }
 }
 
@@ -154,6 +158,10 @@ impl<T: Trait> Module<T> {
         for i in 0..kitty1_dna.len() {
             new_dna[i] = combine_dna(kitty1_dna[i], kitty2_dna[i], selector[i]);
         }
+
+        <KittyChildrenList<T>>::append(&kitty_id_1, kitty_id);
+        <KittyChildrenList<T>>::append(&kitty_id_2, kitty_id);
+		<KittyParents<T>>::insert(kitty_id, (kitty_id_1, kitty_id_2));
         Self::insert_kitty(sender, kitty_id, Kitty(new_dna));
         Ok(kitty_id)
     }
