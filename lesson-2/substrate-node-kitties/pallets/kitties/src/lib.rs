@@ -3,7 +3,7 @@
 use codec::{Encode, Decode};
 use frame_support::{
     decl_module, decl_storage, decl_error, decl_event, ensure, StorageMap, Parameter,
-    traits::{Randomness},
+    traits::{Randomness, Currency, ExistenceRequirement::AllowDeath, ReservableCurrency},
 };
 use sp_io::hashing::blake2_128;
 use frame_system::{self as system, ensure_signed};
@@ -23,6 +23,8 @@ mod tests;
 
 #[derive(Encode, Decode)]
 pub struct Kitty(pub [u8; 16]);
+
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
 
 pub trait Trait: frame_system::Trait {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
@@ -75,13 +77,16 @@ decl_module! {
 		fn deposit_event() = default;
 
 		#[weight = 0]
-		pub fn create(origin) {
+		pub fn create(origin, amount: BalanceOf<T>) {
             let sender = ensure_signed(origin)?;
             let kitty_id = Self::next_kitty_id()?;
             let dna = Self::random_value(&sender);
 
             let kitty = Kitty(dna);
-			Self::insert_kitty(&sender, kitty_id, kitty);
+            Self::insert_kitty(&sender, kitty_id, kitty);
+            
+            T::Currency::reserve(&locker, amount)
+					.map_err(|_| "locker can't afford to lock the amount requested")?;
 
             Self::deposit_event(RawEvent::Created(sender, kitty_id));
         }
