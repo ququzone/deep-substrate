@@ -9,6 +9,12 @@ use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
 use sp_runtime::DispatchError;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 type KittyIndex = u32;
 
 #[derive(Encode, Decode)]
