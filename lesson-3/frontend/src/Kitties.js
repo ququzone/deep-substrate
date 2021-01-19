@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Form, Grid } from 'semantic-ui-react';
+import React, {useEffect, useState} from 'react';
+import {Form, Grid} from 'semantic-ui-react';
 
-import { useSubstrate } from './substrate-lib';
-import { TxButton } from './substrate-lib/components';
+import {useSubstrate} from './substrate-lib';
+import {TxButton} from './substrate-lib/components';
 
 import KittyCards from './KittyCards';
 
@@ -18,24 +18,61 @@ export default function Kitties (props) {
   const [status, setStatus] = useState('');
 
   const fetchKittyCnt = () => {
-    // return api.query.kittiesModule.KittiesCount();
+    let unsubscribe;
+    api.query.kittiesModule.kittiesCount(count => {
+      setKittyCnt(count.toNumber());
+    }).then(unsub => {
+      unsubscribe = unsub;
+    }).catch(console.error);
+    return () => unsubscribe && unsubscribe();
   };
 
   const fetchKitties = () => {
-    /* TODO: 加代码，从 substrate 端读取数据过来 */
+    let unsubscribe;
+    let indexs = [];
+    for (let i = 0; i < kittyCnt; i++) {
+      indexs.push(i);
+    }
+    api.query.kittiesModule.kitties.multi(indexs, (data) => {
+      const items = data.map((dna, id) => {
+        return {
+          dna,
+          id,
+        }
+      })
+      setKitties(items);
+    }).then(unsub => {
+      unsubscribe = unsub;
+    }).catch(console.error);
+    return () => unsubscribe && unsubscribe();
+  };
+
+  const fetchKittyOwners = () => {
+    let unsubscribe;
+    let indexs = [];
+    for (let i = 0; i < kittyCnt; i++) {
+      indexs.push(i);
+    }
+    api.query.kittiesModule.kittyOwners.multi(indexs, (data) => {
+      setKittyOwners(data);
+    }).then(unsub => {
+      unsubscribe = unsub;
+    }).catch(console.error);
+    return () => unsubscribe && unsubscribe();
   };
 
   const populateKitties = () => {
-    /* TODO: 加代码，从 substrate 端读取数据过来 */
+    /* TODO: 加代码，从 substrate 端读取数据过来 */ 
   };
 
-  useEffect(fetchKittyCnt, [api, keyring]);
-  useEffect(fetchKitties, [api, kittyCnt]);
+  useEffect(fetchKittyCnt, [api, keyring, setKittyCnt, api.query.kittiesModule]);
+  useEffect(fetchKitties, [api, kittyCnt, setKitties, api.query.kittiesModule]);
+  useEffect(fetchKittyOwners, [api, kittyCnt, setKittyOwners, api.query.kittiesModule]);
   useEffect(populateKitties, [kittyDNAs, kittyOwners]);
 
   return <Grid.Column width={16}>
     <h1>小毛孩</h1>
-    <KittyCards kitties={kitties} accountPair={accountPair} setStatus={setStatus}/>
+    <KittyCards kitties={kitties} kittyOwners={kittyOwners} kittyPrices={kittyPrices} accountPair={accountPair} setStatus={setStatus}/>
     <Form style={{ margin: '1em 0' }}>
       <Form.Field style={{ textAlign: 'center' }}>
         <TxButton
@@ -49,6 +86,7 @@ export default function Kitties (props) {
         />
       </Form.Field>
     </Form>
+    <p>总共有个{kittyCnt}毛孩</p>
     <div style={{ overflowWrap: 'break-word' }}>{status}</div>
   </Grid.Column>;
 }
