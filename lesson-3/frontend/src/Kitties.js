@@ -18,7 +18,7 @@ export default function Kitties (props) {
   const [status, setStatus] = useState('');
 
   const fetchKittyCnt = () => {
-    /* TODO: 加代码，从 substrate 端读取数据过来 */
+    // return api.query.kittiesModule.KittiesCount();
   };
 
   const fetchKitties = () => {
