@@ -99,6 +99,9 @@ const KittyCard = props => {
                     </Card.Description>
                   </Card.Header>
                   <KittyAvatar dna={dnaBytes} />
+                  <Card.Description>
+                    主人: {ownerAddress}
+                  </Card.Description>
                   <TransferModal kitty={kitty} is_owner={isOwner} accountPair={accountPair} setStatus={setStatus}/>
               </Card.Content>
           </Card>
