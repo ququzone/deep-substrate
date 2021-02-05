@@ -29,3 +29,11 @@ cargo contract new erc20
 cargo +nightly test
 cargo +nightly contract build
 ```
+
+## Run
+
+https://paritytech.github.io/canvas-ui/
+
+```
+canvas --dev --tmp
+```
